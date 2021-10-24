@@ -2,20 +2,17 @@
 #include <vector>
 #include <algorithm>
 #include <map>
-#include <unordered_map>
-#include <queue>
-#include <cmath>
-#include <numeric>
 #include <sstream>
-#include <bitset>
-#include <set>
-#include <thread>
-#include <mutex>
 #include <fstream>
 #include <regex>
 #include <filesystem>
 #include <cctype>
-using namespace std;
+
+using std::cout;
+using std::move;
+using std::vector;
+using std::map;
+using std::string;
 
 template<typename T>
 std::ostream& operator<<(std::ostream& out, std::vector<T>& vec) {
@@ -35,7 +32,63 @@ void printMap(map<T, U>& m) {
 
 
 
-
+namespace ErrorCheckers {
+    void isIdCanBeStoi(string& Id) {
+        try {
+            stoi(Id);
+        }
+        catch (std::exception& e) {
+            string s{ e.what() };
+            s += " in rows id: " + Id + '\n';
+            throw std::exception{ s.c_str() };
+        }
+    }
+    void isTableHasDuplicateIds(const vector<string>& rows_ids, const string& tmp) {
+        if (find(rows_ids.begin(), rows_ids.end(), tmp) != rows_ids.end()) {
+            string s = { "Duplicate rows: " + tmp + '\n' };
+            throw std::exception{ s.c_str() };
+        }
+    }
+    void isTableHasDuplicateColumns(const vector<string>& column_names, const string& tmp){
+        if (find(column_names.begin(), column_names.end(), tmp) != column_names.end()) {
+            string s = {"Duplicate columns: " + tmp + '\n' };
+            throw std::exception{ s.c_str() };
+        }
+    }
+    void isColumnsNamesHasDigits(const vector<string>& column_names) {
+        for (auto it = column_names.begin() + 1; it != column_names.end(); ++it) {
+            if (!isalpha((*it)[0])) {
+                throw std::exception{ "Column name can only be char" };
+            }
+        }
+    }
+    void isAmountOfRowsAreEqual(const vector<string>& rows) {
+        int counter = count(rows[0].begin(), rows[0].end(), ',');
+        for (const auto& i : rows) {
+            int tmp = count(i.begin(), i.end(), ',');
+            if (tmp != counter) throw std::exception{ "Invalid table\n" };
+            counter = tmp;
+        }
+    }
+    void isValueEmpty(const string& tmp) {
+        if (tmp.empty()) {
+            string s = { "Empty value\n" };
+            throw std::exception{ s.c_str() };
+        }
+    }
+    void pathValidation(const string& path) {
+        std::filesystem::path p = path;
+        if (!std::filesystem::exists(p)) {
+            throw std::exception{ "File does not exist\n" };
+        }
+        if (p.extension() != ".csv") {
+            throw std::exception{ "File is not '.csv'\n" };
+        }
+        if (std::filesystem::is_empty(p)) {
+            throw std::exception{ "File is empty\n" };
+        }
+    }
+};
 
 // duplicate rows 0
 
@@ -48,21 +101,14 @@ public:
     vector<string> rows_ids;
 
     void readTable(const string& path) {
-        filesystem::path p = path;
-        if (!filesystem::exists(p)) {
-            throw std::exception{ "File does not exist\n" };
-        }
-        if (p.extension() != ".csv") {
-            throw std::exception{ "File is not '.csv'\n" };
-        }
-        if (filesystem::is_empty(p)) {
-            throw std::exception{"File is empty\n"};
-        }
-        ifstream in(path);
+
+        ErrorCheckers::pathValidation(path);
+
+        std::ifstream in(path);
         if (!in.is_open()) {
             throw std::exception{ "Couldn't open file\n" };
         }
-        data_ = { (istreambuf_iterator<char>(in)), istreambuf_iterator<char>() };
+        data_ = { (std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>() };
         data_.insert(0, "0"); // add zero to first column - top left cell
 
         in.close();
@@ -85,45 +131,32 @@ public:
 
     void getColumnNames() {
         // split data by '\n' and get first row == head
-        stringstream in_(data_);
+        std::stringstream in_(data_);
         string head;
-        getline(in_, head, '\n');
+        std::getline(in_, head, '\n');
 
         // split head by ',' and get col names
         string tmp;
-        stringstream s(head);
+        std::stringstream s(head);
         
         while (getline(s, tmp, ',')) {
-            // check if table has duplicate columns
-            if (find(column_names.begin(), column_names.end(), tmp) != column_names.end()) {
-                string s=  {"Duplicate columns: " + tmp + '\n' };
-                throw std::exception{ s.c_str() };
-            }
+
+            ErrorCheckers::isTableHasDuplicateColumns(column_names, tmp);
 
             column_names.push_back(move(tmp));
         }
 
-        for (auto it = column_names.begin() + 1; it != column_names.end(); ++it) {
-            if (!isalpha((*it)[0])) {
-                throw std::exception{ "Column name can only be char" };
-            }
-        }
+        ErrorCheckers::isColumnsNamesHasDigits(column_names);
     }
 
     void getRows() {
-        stringstream in_(data_);
+        std::stringstream in_(data_);
         string tmp;
         while (getline(in_, tmp, '\n')) {
             rows.push_back(move(tmp));
         }
 
-        // check if numbers of columns are equal in every row
-        int counter = count(rows[0].begin(), rows[0].end(), ',');
-        for (const auto& i : rows) {
-            int tmp = count(i.begin(), i.end(), ',');
-            if (tmp != counter) throw std::exception{ "Invalid table\n" };
-            counter = tmp;
-        }
+        ErrorCheckers::isAmountOfRowsAreEqual(rows);
     }
 
     void getCells() {
@@ -140,7 +173,7 @@ public:
         for (const auto& i : rows) {
             tmp.clear();
             row = i;
-            stringstream s(row); 
+            std::stringstream s(row);
             getline(s, row_number, ',');
             cells["0" + row_number] = row_number; // get row number == Id
 
@@ -149,10 +182,7 @@ public:
             // split row by ',' and write to map each cell 
             // key: col name + row name, e.g. A1 or B3. Value: cell value
             while (getline(s, tmp, ',')) {
-                if (tmp.empty()) {
-                    string s = { "Emty value\n" };
-                    throw std::exception{ s.c_str() };
-                }
+                ErrorCheckers::isValueEmpty(tmp);
 
                 cells[column_names[counter] + row_number] = move(tmp);
                 ++counter;
@@ -160,62 +190,77 @@ public:
         }
        
     }
+    void areCellsHaveArgs(const string& left, const string& right, const string& cell) {
+        if (cells.find(left) == cells.end() ||
+            cells.find(right) == cells.end()) {
+            string s{ "Wrong expression: " + cell + "\n" };
+            throw std::exception{ s.c_str() };
+        }
+    }
+    std::pair<int, int> stoiArgs(const string& left_s, const string& right_s) {
+        try {
+            int left = stoi(cells[left_s]);
+            int right = stoi(cells[right_s]);
+            return { left, right };
+        }
+        catch (std::exception& e) {
+            string s{ e.what() };
+            s += " in cells: " + left_s + " " + right_s + '\n';
+            throw std::exception{ s.c_str() };
+        }
+    }
     void calculateCell(string& cell) {
         // if cell has expression "=A1+B1" - find it with regex,
         // cast to int, do the operation [+,*,-,/] and assign to cell
-        regex r("=(\\w+)([\\+\\*\\-/])(\\w+)");
-        smatch m;
+        std::regex r("=(\\w+)([\\+\\*\\-/])(\\w+)");
+        std::smatch m;
 
         if (cell[0] == '=') {
+            
+            // in "=A1+B1" 
+            // m[1] == "A1"
+            // m[2] == "+"
+            // m[3] == "B1"
             regex_search(cell, m, r);
+
+            string first_op = m[1].str();
+            string sec_op = m[3].str();
+            string op = m[2].str();
 
             // check if expression is valid and both args are
             // exist in the table
-            if (cells.find(m[1]) == cells.end() ||
-                cells.find(m[3]) == cells.end()) {
-                string s{ "Wrong expression: " + cell + "\n" };
-                throw std::exception{ s.c_str() };
-            }
+            areCellsHaveArgs(first_op, sec_op, cell);
 
             // if args refer not to int-cell but to another expression,
             // recursive calculate that expression
-            if (cells[m[1]][0] == '=') {
-                calculateCell(cells[m[1]]);
+            if (cells[first_op][0] == '=') {
+                calculateCell(cells[first_op]);
             }
-            if (cells[m[3]][0] == '=') {
-                calculateCell(cells[m[3]]);
+            if (cells[sec_op][0] == '=') {
+                calculateCell(cells[sec_op]);
             }
-
-            // in "=A1+B1" left = A1, right = B1
-            int left = 0;
-            int right = 0;
 
             // catch error if std::stoi have failed
-            try {
-                left = stoi(cells[m[1]]);
-                right = stoi(cells[m[3]]);
-            }
-            catch (std::exception& e) {
-                string s{ e.what() };
-                s += " in cells: " + m[1].str() + " " + m[3].str() + '\n';
-                throw std::exception{ s.c_str() };
-            }
+            // int left = (int)first_op
+            // int right = (int)sec_op
+            auto [left, right] = stoiArgs(first_op, sec_op);
 
-            if (m[2] == "+") {
-                cell = to_string(left + right);
+
+            if (op == "+") {
+                cell = std::to_string(left + right);
             }
-            else if (m[2] == "-") {
-                cell = to_string(left - right);
+            else if (op == "-") {
+                cell = std::to_string(left - right);
             }
-            else if (m[2] == "*") {
-                cell = to_string(left * right);
+            else if (op == "*") {
+                cell = std::to_string(left * right);
             }
-            else if (m[2] == "/") {
+            else if (op == "/") {
                 if (right == 0) {
-                    string s{ "Devision by zero in cells: " + m[1].str() + " " + m[3].str() + '\n' };
+                    string s{ "Devision by zero in cells: " + first_op + " " + sec_op + '\n' };
                     throw std::domain_error{ s };
                 }
-                cell = to_string(left / right);
+                cell = std::to_string(left / right);
             }
         }
         else if (!checkIfDigit(cell)) {
@@ -238,36 +283,25 @@ public:
         rows_ids.reserve(rows.size());
         for (const auto& i : rows) {
             tmp.clear();
-            stringstream s(i);
+            std::stringstream s(i);
             getline(s, tmp, ',');
-            checkRowsId(tmp);
 
-            // check if table has duplicate Ids
-            if (find(rows_ids.begin(), rows_ids.end(), tmp) != rows_ids.end()) {
-                string s = { "Duplicate rows: " + tmp + '\n' };
-                throw std::exception{ s.c_str() };
-            }
+            ErrorCheckers::isIdCanBeStoi(tmp);
+
+            ErrorCheckers::isTableHasDuplicateIds(rows_ids, tmp);
 
             rows_ids.push_back(move(tmp));
         }
     }
-    void checkRowsId(string& Id) {
-        try {
-            stoi(Id);
-        }
-        catch (std::exception& e) {
-            string s{ e.what() };
-            s += " in rows id: " + Id + '\n';
-            throw std::exception{ s.c_str() };
-        }
-    }
 };
+
+
 int main(int args, char* argv[]) {
     
     CSVReader r;
     try {
-        r.readTable(argv[1]);
-        //r.readTable("file.csv");
+        //r.readTable(argv[1]);
+        r.readTable("file.csv");
         r.printTable();
     }
     catch (std::exception& e) {
