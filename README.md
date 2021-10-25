@@ -2,7 +2,7 @@
 
 # How to build and run
 
-Cmake:
+Ubuntu 20.04. Cmake:
 ```
 git clone https://github.com/Genomorf/CSVReader
 cd CSVReader/
@@ -20,7 +20,7 @@ make CSVReader
  2,2,3,0
  30,0,4,5
 ```
-g++
+Ubuntu 20.04, Windows 10 x64. g++ (с версии 9.0 так как есть модуль std::filesystem, который на ранних версиях не поддерживается).
 ```
 git clone https://github.com/Genomorf/CSVReader
 cd CSVReader/src
