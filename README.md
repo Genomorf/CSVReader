@@ -29,6 +29,8 @@ g++ -std=c++17 main.cpp ErrorCheckers.h ErrorCheckers.cpp CSVReader.h CSVReader.
 Пример работы:
 ```
 ./a.out ../tests/valid1.csv
+or 
+a.exe ../tests/valid1.csv
 
 >,A,B,Cell
  1,2,1,-1
