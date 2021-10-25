@@ -6,7 +6,7 @@
 
         std::ifstream in(path);
         if (!in.is_open()) {
-            throw std::exception{ "Couldn't open file\n" };
+            throw std::runtime_error{ "Couldn't open file\n" };
         }
         data_ = { (std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>() };
         data_.insert(0, "0"); // add zero to first column - top left cell
@@ -94,7 +94,7 @@
         if (cells.find(left) == cells.end() ||
             cells.find(right) == cells.end()) {
             string s{ "Wrong expression: " + cell + "\n" };
-            throw std::exception{ s.c_str() };
+            throw std::runtime_error{ s.c_str() };
         }
     }
     std::pair<int, int> CSVReader::stoiArgs(const string& left_s, const string& right_s) {
@@ -106,7 +106,7 @@
         catch (std::exception& e) {
             string s{ e.what() };
             s += " in cells: " + left_s + " " + right_s + '\n';
-            throw std::exception{ s.c_str() };
+            throw std::runtime_error{ s.c_str() };
         }
     }
     void CSVReader::calculateCell(string& cell) {
@@ -164,7 +164,7 @@
             }
         }
         else if (!checkIfDigit(cell)) {
-            throw std::exception{ "Cell can be only digit or expression\n" };
+            throw std::runtime_error{ "Cell can be only digit or expression\n" };
         }
         // if cell == number - do nothing
     }
